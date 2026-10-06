@@ -1,0 +1,855 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>REQ-001 Design — Secured Remote MCP Server with Mock WhatsApp Provider</title>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:           #f0f4f8;
+      --surface:      #ffffff;
+      --border:       #d1dce8;
+      --text:         #1a202c;
+      --text-muted:   #5a6e86;
+      --primary:      #1a56db;
+      --primary-dark: #1e3a5f;
+      --accent:       #3b82f6;
+      --code-bg:      #161b22;
+      --code-text:    #c9d1d9;
+      --nav-bg:       #1e3a5f;
+      --nav-text:     #cfe2ff;
+      --nav-active:   #60a5fa;
+    }
+
+    html {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      font-size: 16px;
+      line-height: 1.65;
+      color: var(--text);
+      background: var(--bg);
+      scroll-behavior: smooth;
+    }
+
+    body { display: grid; grid-template-columns: 260px 1fr; min-height: 100vh; }
+
+    @media (max-width: 900px) {
+      body { grid-template-columns: 1fr; }
+      #toc { position: static; height: auto; }
+    }
+
+    #toc {
+      position: sticky; top: 0; height: 100vh; overflow-y: auto;
+      background: var(--nav-bg); padding: 2rem 1.25rem; font-size: 0.83rem;
+    }
+    #toc .toc-title { color: #fff; font-weight: 700; font-size: 0.88rem; line-height: 1.3; margin-bottom: 0.6rem; }
+    #toc .toc-meta { margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid rgba(255,255,255,0.15); }
+    #toc .badge-row { display: flex; gap: 0.35rem; flex-wrap: wrap; }
+    #toc .badge { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 999px; font-size: 0.7rem; font-weight: 700; }
+    #toc .badge-req   { background: #dbeafe; color: #1e40af; }
+    #toc .badge-draft { background: #fef3c7; color: #92400e; }
+    #toc h2 { color: #93c5fd; font-size: 0.68rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 0.75rem; }
+    #toc ol { list-style: none; counter-reset: toc-c; }
+    #toc ol li { counter-increment: toc-c; margin-bottom: 0.3rem; }
+    #toc ol li a { color: var(--nav-text); text-decoration: none; display: block; padding: 0.25rem 0.4rem; border-radius: 4px; line-height: 1.35; transition: background 0.15s, color 0.15s; }
+    #toc ol li a::before { content: counter(toc-c) ". "; color: var(--nav-active); font-weight: 700; }
+    #toc ol li a:hover { background: rgba(255,255,255,0.1); color: #fff; }
+
+    main { max-width: 860px; padding: 2.5rem 2.25rem; }
+    @media (max-width: 900px) { main { padding: 1.25rem 1rem; } }
+
+    .doc-header { margin-bottom: 2.5rem; padding-bottom: 1.5rem; border-bottom: 2px solid var(--border); }
+    .badge-row { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-bottom: 0.75rem; }
+    .badge { display: inline-block; padding: 0.2rem 0.6rem; border-radius: 999px; font-size: 0.75rem; font-weight: 600; }
+    .badge-req   { background: #dbeafe; color: #1e40af; }
+    .badge-draft { background: #fef3c7; color: #92400e; }
+    .doc-header h1 { font-size: 1.75rem; font-weight: 700; color: var(--primary-dark); line-height: 1.25; margin-bottom: 0.75rem; }
+    .doc-header p { color: var(--text-muted); font-size: 0.95rem; }
+
+    section { margin-bottom: 3rem; }
+    h2 { font-size: 1.25rem; font-weight: 700; color: var(--primary-dark); margin-bottom: 1.25rem; padding-bottom: 0.45rem; border-bottom: 2px solid var(--accent); display: flex; align-items: center; gap: 0.5rem; }
+    .sn { background: var(--primary-dark); color: #fff; font-size: 0.7rem; font-weight: 700; padding: 0.15rem 0.45rem; border-radius: 4px; flex-shrink: 0; }
+    h3 { font-size: 1rem; font-weight: 600; color: var(--primary-dark); margin: 1.75rem 0 0.7rem; }
+    p { margin-bottom: 0.9rem; }
+    strong { color: var(--primary-dark); }
+    ul, ol { margin: 0.4rem 0 1rem 1.4rem; }
+    li { margin-bottom: 0.3rem; }
+    blockquote { border-left: 3px solid var(--accent); padding: 0.5rem 1rem; color: var(--text-muted); font-style: italic; background: #f8fafc; border-radius: 0 4px 4px 0; margin: 1rem 0; }
+    hr { border: none; border-top: 1px solid var(--border); margin: 2rem 0; }
+
+    code { font-family: 'SF Mono','Cascadia Code','Fira Code',Menlo,Monaco,Consolas,monospace; font-size: 0.855em; background: #e8eef5; color: #b91c1c; padding: 0.1em 0.35em; border-radius: 3px; }
+    pre { background: var(--code-bg); color: var(--code-text); padding: 1.1rem 1.4rem; border-radius: 8px; overflow-x: auto; margin: 0.75rem 0 1.4rem; font-size: 0.83rem; line-height: 1.65; border: 1px solid #30363d; font-family: 'SF Mono','Cascadia Code','Fira Code',Menlo,Monaco,Consolas,monospace; }
+    pre code { background: none; color: inherit; padding: 0; font-size: inherit; border-radius: 0; }
+
+    .diagram { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1.25rem 1rem; margin: 1rem 0 1.5rem; text-align: center; }
+    .diagram-label { font-size: 0.72rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 0.75rem; }
+    .diagram pre.mermaid { background: transparent !important; border: none !important; padding: 0 !important; margin: 0 !important; color: inherit !important; overflow: visible; }
+
+    .tw { overflow-x: auto; margin: 0.75rem 0 1.4rem; border-radius: 8px; border: 1px solid var(--border); }
+    table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+    thead th { background: var(--primary-dark); color: #fff; padding: 0.65rem 1rem; text-align: left; font-weight: 600; white-space: nowrap; }
+    tbody tr:nth-child(even) { background: #f7fafc; }
+    tbody tr:hover { background: #eef4ff; }
+    td { padding: 0.55rem 1rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+    td:first-child { font-weight: 600; color: var(--primary-dark); white-space: nowrap; }
+
+    .callout { border-left: 4px solid; border-radius: 0 6px 6px 0; padding: 0.9rem 1.1rem; margin: 1rem 0; font-size: 0.9rem; }
+    .ct { font-weight: 700; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 0.35rem; }
+    .callout-info   { background: #eff6ff; border-color: #3b82f6; }
+    .callout-info   .ct { color: #1d4ed8; }
+    .callout-warn   { background: #fffbeb; border-color: #f59e0b; }
+    .callout-warn   .ct { color: #b45309; }
+    .callout-future { background: #faf5ff; border-color: #a855f7; }
+    .callout-future .ct { color: #7e22ce; }
+    .callout-locked { background: #fff7ed; border-color: #ea580c; }
+    .callout-locked .ct { color: #c2410c; }
+    .callout pre { margin: 0.6rem 0 0; font-size: 0.8rem; }
+
+    .filetree { background: var(--code-bg); padding: 1.1rem 1.4rem; border-radius: 8px; border: 1px solid #30363d; font-family: 'SF Mono','Cascadia Code',Menlo,Monaco,Consolas,monospace; font-size: 0.8rem; line-height: 1.85; overflow-x: auto; white-space: pre; margin: 0.75rem 0 1.4rem; }
+    .ft-dir     { color: #79c0ff; font-weight: 600; }
+    .ft-file    { color: #c9d1d9; }
+    .ft-comment { color: #6e7681; }
+    .ft-tree    { color: #6e7681; }
+  </style>
+</head>
+<body>
+
+<nav id="toc">
+  <div class="toc-meta">
+    <div class="toc-title">REQ-001 Design</div>
+    <div class="badge-row">
+      <span class="badge badge-req">REQ-001</span>
+      <span class="badge badge-draft">Draft</span>
+    </div>
+  </div>
+  <h2>Contents</h2>
+  <ol>
+    <li><a href="#s1">Analysis &amp; Understanding</a></li>
+    <li><a href="#s2">Functional &amp; Non-Functional Requirements</a></li>
+    <li><a href="#s3">Assumptions, Constraints, Risks &amp; OQs</a></li>
+    <li><a href="#s4">Technical Architecture</a></li>
+    <li><a href="#s5">MCP Server &amp; Security Design</a></li>
+    <li><a href="#s6">Provider Abstraction</a></li>
+    <li><a href="#s7">Python Project Structure</a></li>
+    <li><a href="#s8">Docker &amp; Local Runtime</a></li>
+    <li><a href="#s9">Testing Strategy</a></li>
+    <li><a href="#s10">Acceptance Criteria Mapping</a></li>
+    <li><a href="#s11">Open Items</a></li>
+  </ol>
+</nav>
+
+<main>
+
+  <div class="doc-header">
+    <div class="badge-row">
+      <span class="badge badge-req">REQ-001</span>
+      <span class="badge badge-draft">Status: Draft</span>
+    </div>
+    <h1>Secured Remote MCP Server with Mock WhatsApp Provider</h1>
+    <p>Design for REQ-001. Establishes a complete secured local pipeline — HTTPS, authentication, authorization, rate limiting, audit logging, MCP transport, tool contract, provider abstraction, and Docker runtime. REQ-002 adds real Meta delivery; REQ-003 moves to production cloud hosting and hardening.</p>
+  </div>
+
+  <!-- ─── 1 ─── -->
+  <section id="s1">
+    <h2><span class="sn">1</span> Analysis and Understanding</h2>
+
+    <p>REQ-001 establishes every structural layer that REQ-002 and REQ-003 build on. Its real deliverable is a proven, <strong>secured</strong> extensible pipeline running locally on Docker:</p>
+
+    <div class="diagram">
+      <div class="diagram-label">Complete REQ-001 Pipeline</div>
+      <pre class="mermaid">
+flowchart LR
+    MC["MCP Client"]
+    TLS["HTTPS + Authentication"]
+    EP["Remote MCP Endpoint"]
+    ARA["Authz / Rate Limit / Audit"]
+    SM["send_message tool"]
+    PA["WhatsAppProvider ABC"]
+    MP["MockWhatsAppProvider"]
+    ME["MetaWhatsAppProvider"]
+
+    MC --> TLS --> EP --> ARA --> SM --> PA
+    PA --> MP
+    PA -.->|"REQ-002"| ME
+
+    style TLS fill:#dcfce7,stroke:#16a34a,color:#14532d
+    style EP  fill:#dcfce7,stroke:#16a34a,color:#14532d
+    style ARA fill:#dcfce7,stroke:#16a34a,color:#14532d
+    style SM  fill:#dcfce7,stroke:#16a34a,color:#14532d
+    style PA  fill:#dcfce7,stroke:#16a34a,color:#14532d
+    style MP  fill:#dcfce7,stroke:#16a34a,color:#14532d
+    style ME  fill:#faf5ff,stroke:#a855f7,color:#581c87
+      </pre>
+    </div>
+
+    <p>The MCP tool contract (<code>send_message</code> inputs and <code>MessageResult</code> shape) is locked here and must not change across REQ-002 and REQ-003. The <code>WhatsAppProvider</code> interface is the internal extension boundary. Security controls (auth, authz, rate limiting, audit) are first-class REQ-001 deliverables — not deferred work.</p>
+
+    <p>REQ-001 does <strong>not</strong> deploy to public cloud. The entire runtime lives in Docker Desktop on the developer's Mac. REQ-003 handles public hosting, production TLS management, and production-grade hardening.</p>
+  </section>
+
+  <!-- ─── 2 ─── -->
+  <section id="s2">
+    <h2><span class="sn">2</span> Functional and Non-Functional Requirements</h2>
+
+    <h3>Functional Requirements</h3>
+    <div class="tw"><table>
+      <thead><tr><th>ID</th><th>Requirement</th></tr></thead>
+      <tbody>
+        <tr><td>FR-01</td><td>MCP tool <code>send_message(recipient: str, message: str)</code> exposed via remote HTTP transport</td></tr>
+        <tr><td>FR-02</td><td>Tool returns <code>MessageResult</code>: <code>status</code>, <code>provider</code>, <code>message_id</code>, <code>recipient</code>, <code>message</code>, <code>timestamp</code></td></tr>
+        <tr><td>FR-03</td><td><code>MockWhatsAppProvider</code> simulates delivery — no external network calls</td></tr>
+        <tr><td>FR-04</td><td>Input validation: reject empty or whitespace-only <code>recipient</code> and <code>message</code> before reaching provider</td></tr>
+        <tr><td>FR-05</td><td>Provider selected via environment variable; no source code change to switch</td></tr>
+        <tr><td>FR-06</td><td>Provider failures return controlled error responses; MCP server must not crash</td></tr>
+        <tr><td>FR-07</td><td><code>docker compose up --build</code> is the only command needed to build and start</td></tr>
+        <tr><td>FR-08</td><td>Server reachable from host Mac at the documented HTTPS endpoint after Docker start</td></tr>
+        <tr><td>FR-09</td><td>MCP clients access the endpoint through HTTPS; plain HTTP permitted only inside trusted local Docker boundary when TLS terminates at local ingress</td></tr>
+        <tr><td>FR-10</td><td>Authentication required; unauthenticated requests rejected before <code>send_message</code> can be invoked</td></tr>
+        <tr><td>FR-11</td><td>Authorization enforced server-side before provider invocation; unauthorized requests do not reach <code>MockWhatsAppProvider</code></td></tr>
+        <tr><td>FR-12</td><td>Rate limiting on <code>send_message</code>; rate-limited requests rejected before provider invocation</td></tr>
+        <tr><td>FR-13</td><td>Each <code>send_message</code> invocation produces a structured audit record: timestamp, correlation ID, tool name, provider, outcome, client identity (where available)</td></tr>
+        <tr><td>FR-14</td><td>Audit records never contain credentials, access tokens, authorization headers, or secrets</td></tr>
+      </tbody>
+    </table></div>
+
+    <h3>Non-Functional Requirements</h3>
+    <div class="tw"><table>
+      <thead><tr><th>ID</th><th>Requirement</th></tr></thead>
+      <tbody>
+        <tr><td>NFR-01</td><td>Operational logging: startup, invocation, provider, result, message ID — no credentials ever logged</td></tr>
+        <tr><td>NFR-02</td><td>Clean provider abstraction — swapping <code>MockWhatsAppProvider</code> for <code>MetaWhatsAppProvider</code> requires no MCP tool contract change</td></tr>
+        <tr><td>NFR-03</td><td>All configuration via environment variables — no hardcoded hosts, ports, or provider names</td></tr>
+        <tr><td>NFR-04</td><td><code>.env</code> excluded from git; <code>.env.example</code> provides variable names and placeholders</td></tr>
+        <tr><td>NFR-05</td><td>Automated test suite covers: success, validation failures, controlled provider error, auth/authz/rate-limit/audit</td></tr>
+        <tr><td>NFR-06</td><td>No globally installed Python dependencies required on the host after image build</td></tr>
+        <tr><td>NFR-07</td><td>Message body logged at DEBUG level only — disableable without code change</td></tr>
+        <tr><td>NFR-08</td><td>Authentication credentials never logged, never hardcoded, never committed to git</td></tr>
+        <tr><td>NFR-09</td><td>Security failures (auth/authz/rate-limit) do not expose stack traces or implementation internals to the client</td></tr>
+        <tr><td>NFR-10</td><td>Local TLS certificates and private keys excluded from git; README documents cert generation and macOS trust setup</td></tr>
+        <tr><td>NFR-11</td><td>Rate-limit configuration externalized via environment variables</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <!-- ─── 3 ─── -->
+  <section id="s3">
+    <h2><span class="sn">3</span> Assumptions, Constraints, Risks, and Open Questions</h2>
+
+    <h3>Assumptions</h3>
+    <div class="tw"><table>
+      <thead><tr><th>#</th><th>Assumption</th></tr></thead>
+      <tbody>
+        <tr><td>A-01</td><td>FastMCP 2.x (latest stable); <code>mcp.http_app()</code> returns ASGI app mountable with uvicorn</td></tr>
+        <tr><td>A-02</td><td>Python 3.12 in container image</td></tr>
+        <tr><td>A-03</td><td><code>pyproject.toml</code> manages dependencies; <code>uv</code> used for builds</td></tr>
+        <tr><td>A-04</td><td>pytest + pytest-asyncio for test suite</td></tr>
+        <tr><td>A-05</td><td><code>pydantic-settings</code> manages env-var configuration</td></tr>
+        <tr><td>A-06</td><td>Docker Desktop on Mac is the dev runtime</td></tr>
+        <tr><td>A-07</td><td>Provider <code>send_message</code> is <code>async def</code> to allow REQ-002's HTTP calls without interface change</td></tr>
+        <tr><td>A-08</td><td><code>MessageResult</code> is a Python <code>dataclass</code>; FastMCP serializes it automatically</td></tr>
+        <tr><td>A-09</td><td>TLS termination approach TBD (OQ-06): reverse proxy container vs in-app uvicorn TLS</td></tr>
+        <tr><td>A-10</td><td>Authentication mechanism TBD (OQ-04): Bearer token vs OAuth per MCP 2025 spec</td></tr>
+      </tbody>
+    </table></div>
+
+    <h3>Constraints</h3>
+    <div class="callout callout-locked">
+      <div class="ct">🔒 Locked Contracts</div>
+      <strong>C-01</strong> — <code>send_message(recipient, message)</code> signature and <code>MessageResult</code> field set are locked. REQ-002/003 must not break them.<br><br>
+      <strong>C-05</strong> — Security enforcement must be server-side. It must never depend on instructions in an LLM prompt.
+    </div>
+    <div class="tw"><table>
+      <thead><tr><th>#</th><th>Constraint</th></tr></thead>
+      <tbody>
+        <tr><td>C-01</td><td>MCP tool signature and <code>MessageResult</code> field set are <strong>locked</strong></td></tr>
+        <tr><td>C-02</td><td><code>WhatsAppProvider.send_message</code> must be <code>async</code></td></tr>
+        <tr><td>C-03</td><td>No real network calls in any unit or standard pytest run</td></tr>
+        <tr><td>C-04</td><td>E.164 phone-number validation is out of scope for REQ-001; only whitespace/empty rejection required</td></tr>
+        <tr><td>C-05</td><td>Security enforcement must be server-side — must not depend on LLM prompt</td></tr>
+      </tbody>
+    </table></div>
+
+    <h3>Risks</h3>
+    <div class="tw"><table>
+      <thead><tr><th>#</th><th>Risk</th><th>Mitigation</th></tr></thead>
+      <tbody>
+        <tr><td>R-01</td><td>FastMCP API surface changes between research and implementation</td><td>Pin <code>fastmcp&gt;=2.3,&lt;3</code>; verify <code>http_app()</code> at implementation time</td></tr>
+        <tr><td>R-02</td><td>FastMCP tool decorator requires specific return type for serialization</td><td>Spike dataclass serialization before writing full tool</td></tr>
+        <tr><td>R-03</td><td>Async context in tests: FastMCP test client may need event-loop fixtures</td><td>Use <code>pytest-asyncio</code> with <code>asyncio_mode = "auto"</code></td></tr>
+        <tr><td>R-04</td><td>REQ-003 requires non-root container</td><td>Add <code>USER appuser</code> in REQ-001 Dockerfile now; zero cost</td></tr>
+        <tr><td>R-05</td><td>Local cert setup varies by macOS version; trust chain can break quietly</td><td>Use <code>mkcert</code>; document exact steps; deterministic generation in compose</td></tr>
+        <tr><td>R-06</td><td>FastMCP auth integration points unclear until implementation spike</td><td>Spike ASGI middleware + mcp.http_app() wrapping in first implementation session</td></tr>
+      </tbody>
+    </table></div>
+
+    <h3>Open Questions (14 — resolve before / during implementation)</h3>
+    <div class="tw"><table>
+      <thead><tr><th>#</th><th>Question</th></tr></thead>
+      <tbody>
+        <tr><td>OQ-01</td><td>Which exact FastMCP package and pinned version will be used?</td></tr>
+        <tr><td>OQ-02</td><td>What is the current recommended HTTP-based remote MCP transport for that version, and what endpoint path does it expose?</td></tr>
+        <tr><td>OQ-03</td><td>Which MCP client(s) must be supported for the PoC (Claude Desktop, MCP Inspector, custom)?</td></tr>
+        <tr><td>OQ-04</td><td>Which authentication mechanism best fits current MCP spec + FastMCP + target client (Bearer token, OAuth 2.0, other)?</td></tr>
+        <tr><td>OQ-05</td><td>What client identity or claim is used for authorization, and what minimal policy grants access to <code>send_message</code>?</td></tr>
+        <tr><td>OQ-06</td><td>Where does TLS terminate: in the MCP application (uvicorn TLS) or in a separate local reverse-proxy container (Caddy/nginx)?</td></tr>
+        <tr><td>OQ-07</td><td>How are local development certificates generated and trusted on macOS while ensuring private keys remain uncommitted?</td></tr>
+        <tr><td>OQ-08</td><td>What default rate limit, time window, and identity key should be used? Is in-memory state sufficient for this single-host PoC?</td></tr>
+        <tr><td>OQ-09</td><td>Where are audit records written, in what structured format, and what local retention behavior is appropriate?</td></tr>
+        <tr><td>OQ-10</td><td>Should recipient validation remain non-empty only, or enforce E.164 formatting in REQ-001?</td></tr>
+        <tr><td>OQ-11</td><td>Should message bodies always be omitted/redacted from logs and audit records, or may an explicit debug option enable them?</td></tr>
+        <tr><td>OQ-12</td><td>Should HTTPS/security and MCP server run in one container or separate Compose services?</td></tr>
+        <tr><td>OQ-13</td><td>Which error codes and structured error fields does the selected MCP SDK expose for auth, authz, rate-limit, validation, and provider failures?</td></tr>
+        <tr><td>OQ-14</td><td>What deterministic strategy will integration tests use for local certificates, auth credentials, rate-limit state, and audit capture?</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <!-- ─── 4 ─── -->
+  <section id="s4">
+    <h2><span class="sn">4</span> Technical Architecture</h2>
+
+    <h3>Component Overview</h3>
+    <div class="diagram">
+      <div class="diagram-label">System Architecture — REQ-001 Full Stack</div>
+      <pre class="mermaid">
+flowchart TB
+    MC["MCP Client"]
+
+    MC -->|"HTTPS + Authentication"| TLS
+
+    subgraph DOCKER["Docker · whatsapp-mcp"]
+        TLS["TLS Termination\n(reverse proxy or in-app · OQ-06)"]
+        AUTH["Auth Middleware\nvalidate token · inject correlation ID"]
+        ARA["Authz + Rate Limit + Audit"]
+
+        subgraph FM["FastMCP App · whatsapp-mcp-server"]
+            TOOL["send_message tool"]
+            VAL["Validate inputs"]
+            CALL["provider.send_message()"]
+            RET["Return MessageResult"]
+            TOOL --> VAL --> CALL --> RET
+        end
+
+        subgraph PROV["WhatsAppProvider ABC"]
+            MOCK["MockWhatsAppProvider"]
+            META["MetaWhatsAppProvider\n(REQ-002)"]
+        end
+
+        CONF["Config · env vars"]
+        LOG["Logging + Audit"]
+    end
+
+    TLS --> AUTH --> ARA --> TOOL
+    CALL --> MOCK
+    CALL -.->|"REQ-002"| META
+    TOOL -.-> CONF
+    TOOL -.-> LOG
+
+    style TLS  fill:#dcfce7,stroke:#16a34a,color:#14532d
+    style AUTH fill:#dcfce7,stroke:#16a34a,color:#14532d
+    style ARA  fill:#dcfce7,stroke:#16a34a,color:#14532d
+    style MOCK fill:#dcfce7,stroke:#16a34a,color:#14532d
+    style META fill:#faf5ff,stroke:#a855f7,color:#581c87
+    style DOCKER fill:#f0f9ff,stroke:#0ea5e9,color:#0c4a6e
+    style FM fill:#fff7ed,stroke:#f97316,color:#7c2d12
+    style PROV fill:#f0fdf4,stroke:#22c55e,color:#14532d
+      </pre>
+    </div>
+
+    <h3>Component Responsibilities</h3>
+    <div class="tw"><table>
+      <thead><tr><th>Component</th><th>Responsibility</th></tr></thead>
+      <tbody>
+        <tr><td>TLS Termination</td><td>Terminates HTTPS; passes plain HTTP to auth middleware. Mechanism TBD (OQ-06): reverse proxy container or in-app uvicorn TLS</td></tr>
+        <tr><td>Auth Middleware</td><td>Validates authentication token on every request; injects correlation ID; rejects unauthenticated → 401</td></tr>
+        <tr><td>Authz + Rate Limit + Audit</td><td>Authorization policy check → 403 if denied; rate-limit enforcement → 429 if exceeded; emits structured audit record per invocation</td></tr>
+        <tr><td><code>config.py</code></td><td>Reads and validates env vars; constructs provider instance and security config</td></tr>
+        <tr><td><code>validation.py</code></td><td>Rejects empty/whitespace inputs before they reach the provider</td></tr>
+        <tr><td><code>WhatsAppProvider</code> (ABC)</td><td>Provider contract: <code>async send_message(recipient, message) → MessageResult</code></td></tr>
+        <tr><td><code>MockWhatsAppProvider</code></td><td>Generates uuid + UTC timestamp; returns <code>MessageResult</code>; no I/O</td></tr>
+        <tr><td><code>get_provider()</code> factory</td><td>Maps <code>PROVIDER</code> env var to concrete provider instance</td></tr>
+        <tr><td><code>server.py</code> (FastMCP app)</td><td>Wires tool to validation + provider; handles MCP protocol</td></tr>
+        <tr><td>Uvicorn</td><td>Serves ASGI app; listens on <code>0.0.0.0:8000</code> inside container (plain HTTP when TLS terminates at proxy)</td></tr>
+      </tbody>
+    </table></div>
+
+    <h3>Target Production Architecture (REQ-001 → REQ-003)</h3>
+    <p>REQ-001 proves the full local security stack. REQ-002 adds real delivery. REQ-003 moves to public cloud with production hardening.</p>
+
+    <div class="diagram">
+      <div class="diagram-label">Phased Delivery</div>
+      <pre class="mermaid">
+flowchart TB
+    MC["MCP Client"]
+
+    MC -->|"HTTPS + Authentication"| EP["Remote MCP Endpoint"]
+    EP -->|"Authorization / Rate Limit / Audit"| SRV["MCP Server"]
+    SRV --> WA["WhatsAppProvider"]
+    WA --> MOCK["MockWhatsAppProvider"]
+    WA -.->|"REQ-002"| META["MetaWhatsAppProvider"]
+    META -.->|"REQ-002"| API["Meta WhatsApp Cloud API"]
+
+    style MC   fill:#dbeafe,stroke:#3b82f6,color:#1e3a5f
+    style EP   fill:#dcfce7,stroke:#16a34a,color:#14532d
+    style SRV  fill:#dcfce7,stroke:#16a34a,color:#14532d
+    style WA   fill:#dcfce7,stroke:#16a34a,color:#14532d
+    style MOCK fill:#dcfce7,stroke:#16a34a,color:#14532d
+    style META fill:#faf5ff,stroke:#a855f7,color:#581c87
+    style API  fill:#faf5ff,stroke:#a855f7,color:#581c87
+      </pre>
+    </div>
+
+    <div class="tw"><table>
+      <thead><tr><th>Layer</th><th>Implemented By</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td>HTTPS + Authentication</td><td><strong>REQ-001</strong></td><td>Local TLS; auth token validated before any tool invocation</td></tr>
+        <tr><td>Remote MCP Endpoint</td><td><strong>REQ-001</strong></td><td>Local Docker HTTPS endpoint; designed for remote access patterns</td></tr>
+        <tr><td>Authorization / Rate Limit / Audit</td><td><strong>REQ-001</strong></td><td>Server-side policy; per-client rate cap; structured audit log</td></tr>
+        <tr><td>MCP Server + WhatsAppProvider ABC</td><td><strong>REQ-001</strong></td><td>Tool contract locked here</td></tr>
+        <tr><td>MockWhatsAppProvider</td><td><strong>REQ-001</strong></td><td>No external calls; used in all unit tests</td></tr>
+        <tr><td>MetaWhatsAppProvider</td><td>REQ-002</td><td>Real delivery via Meta Cloud API; <code>PROVIDER=meta</code></td></tr>
+        <tr><td>Meta WhatsApp Cloud API</td><td>REQ-002</td><td>External — template-based outbound messaging</td></tr>
+        <tr><td>Production TLS/certs, secret mgmt, cloud hosting</td><td>REQ-003</td><td>Production hardening; not required for local PoC</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <!-- ─── 5 ─── -->
+  <section id="s5">
+    <h2><span class="sn">5</span> MCP Server and Security Design</h2>
+
+    <h3>SDK and Transport</h3>
+    <div class="tw"><table>
+      <thead><tr><th>Concern</th><th>Decision</th></tr></thead>
+      <tbody>
+        <tr><td>SDK</td><td><code>fastmcp</code> (latest stable 2.x)</td></tr>
+        <tr><td>Transport</td><td>Streamable HTTP — current MCP spec (2025) standard. SSE deprecated.</td></tr>
+        <tr><td>ASGI server</td><td><code>uvicorn</code></td></tr>
+        <tr><td>Startup pattern</td><td><code>mcp.http_app()</code> + uvicorn; security middleware wraps the ASGI app</td></tr>
+      </tbody>
+    </table></div>
+
+    <h3>HTTPS / TLS</h3>
+    <p>MCP clients connect through HTTPS. TLS may terminate at: (a) a reverse-proxy container (Caddy or nginx) or (b) directly in the Python app via uvicorn TLS. Exact choice resolved at OQ-06.</p>
+    <div class="callout callout-warn">
+      <div class="ct">OQ-06 — TLS Termination Decision Required</div>
+      Two options at implementation time:<br>
+      <strong>Option A — Reverse proxy (Caddy/nginx)</strong>: separate Compose service handles TLS; MCP app runs plain HTTP on internal Docker network. Clean separation; easier cert management with Caddy auto-certs.<br>
+      <strong>Option B — In-app uvicorn TLS</strong>: single container; uvicorn loads cert/key files from mounted volume. Simpler Compose topology.
+    </div>
+    <p>Local TLS certs and private keys must never be committed to git. README must document <code>mkcert</code> (or equivalent) generation and macOS trust setup.</p>
+
+    <h3>Authentication</h3>
+    <p>ASGI middleware wraps <code>mcp.http_app()</code>. Every request is authenticated before reaching the FastMCP tool dispatcher. Mechanism TBD at OQ-04 — two candidates:</p>
+    <div class="tw"><table>
+      <thead><tr><th>Option</th><th>Header</th><th>Config</th><th>Fits</th></tr></thead>
+      <tbody>
+        <tr><td>Bearer token (API key)</td><td><code>Authorization: Bearer &lt;token&gt;</code></td><td><code>API_KEY</code> env var</td><td>Simple; works with all MCP clients</td></tr>
+        <tr><td>OAuth 2.0</td><td>OAuth flow</td><td>OAuth server config</td><td>MCP 2025 spec auth extension; more complex</td></tr>
+      </tbody>
+    </table></div>
+    <p>Regardless of mechanism: credentials never logged; missing/invalid token → controlled 401 response before tool dispatch; correlation ID injected into request state for audit.</p>
+
+    <h3>Authorization</h3>
+    <p>Post-authentication policy check. For REQ-001 PoC, the initial model is: <em>authenticated = authorized to call <code>send_message</code></em>. Unauthorized → 403 before provider invocation. Granular roles deferred to REQ-003.</p>
+    <div class="callout callout-info">
+      <div class="ct">Server-Side Enforcement</div>
+      Authorization must never depend on LLM prompt content or client-side checks. Enforcement is in server middleware, not in the tool function body.
+    </div>
+
+    <h3>Rate Limiting</h3>
+    <p>Per-client rate cap on <code>send_message</code>. For single-host PoC, in-memory state is sufficient (no Redis required). Rate-limited requests rejected before <code>MockWhatsAppProvider</code> is invoked. Config externalized:</p>
+    <pre><code>RATE_LIMIT_PER_MINUTE=10
+RATE_LIMIT_BURST=5</code></pre>
+    <p>Prevents accidental invocation loops and uncontrolled WhatsApp delivery when REQ-002 is introduced.</p>
+
+    <h3>Audit Logging</h3>
+    <p>Each <code>send_message</code> invocation produces a structured audit record. Minimum fields:</p>
+    <div class="tw"><table>
+      <thead><tr><th>Field</th><th>Value</th></tr></thead>
+      <tbody>
+        <tr><td><code>timestamp</code></td><td>UTC ISO-8601</td></tr>
+        <tr><td><code>correlation_id</code></td><td>Generated per request; propagated through provider call</td></tr>
+        <tr><td><code>tool</code></td><td><code>"send_message"</code></td></tr>
+        <tr><td><code>provider</code></td><td><code>"mock"</code> (or future provider name)</td></tr>
+        <tr><td><code>outcome</code></td><td><code>"success"</code> / <code>"auth_failed"</code> / <code>"rate_limited"</code> / <code>"provider_error"</code> / …</td></tr>
+        <tr><td><code>client_identity</code></td><td>Token prefix or claim (never full token)</td></tr>
+        <tr><td><code>message_id</code></td><td>Provider message ID on success</td></tr>
+      </tbody>
+    </table></div>
+    <p>Audit records must never contain credentials, tokens, or full authorization headers. Message body omitted or redacted by default (OQ-11).</p>
+
+    <h3>Correlation ID</h3>
+    <p>Generated per request in auth middleware; injected into request state; propagated to provider result and audit record. Enables tracing a single MCP invocation through all log entries.</p>
+
+    <h3>Server Wiring</h3>
+    <div class="diagram">
+      <div class="diagram-label">server.py Initialization Flow</div>
+      <pre class="mermaid">
+flowchart TD
+    START["server.py starts"]
+    SETS["Load Settings from env"]
+    FACT["get_provider(settings.provider)"]
+    APP["FastMCP('whatsapp-mcp-server')"]
+    TOOL["Register @app.tool() send_message"]
+    ASGI["base_app = mcp.http_app()"]
+    MW["Wrap with security middleware\n(auth · authz · rate-limit · audit)"]
+    CMD["uvicorn server:app\n--host 0.0.0.0 --port 8000"]
+
+    START --> SETS --> FACT --> APP --> TOOL --> ASGI --> MW --> CMD
+
+    style CMD fill:#1e3a5f,stroke:#3b82f6,color:#fff
+    style MW  fill:#dcfce7,stroke:#16a34a,color:#14532d
+      </pre>
+    </div>
+
+    <div class="callout callout-future">
+      <div class="ct">REQ-003 Extensibility</div>
+      The security middleware stack mounts on <code>mcp.http_app()</code>. REQ-003 replaces or augments individual middleware layers (stronger auth, production rate limits, external audit sink) without touching the tool layer.
+    </div>
+  </section>
+
+  <!-- ─── 6 ─── -->
+  <section id="s6">
+    <h2><span class="sn">6</span> WhatsAppProvider Abstraction and MockWhatsAppProvider</h2>
+
+    <h3>MessageResult</h3>
+    <pre><code>dataclass MessageResult:
+    status:     str   # "delivered" | "failed" | ...
+    provider:   str   # "mock" | "meta"
+    message_id: str   # provider-specific ID
+    recipient:  str   # echo of input
+    message:    str   # echo of input
+    timestamp:  str   # UTC ISO-8601</code></pre>
+
+    <div class="callout callout-info">
+      <div class="ct">Co-location</div>
+      <code>MessageResult</code> lives in <code>providers/base.py</code> alongside the ABC — contract and definition stay co-located.
+    </div>
+
+    <h3>WhatsAppProvider ABC</h3>
+    <pre><code>abstract class WhatsAppProvider:
+    abstract async send_message(recipient: str, message: str) -&gt; MessageResult</code></pre>
+
+    <p><strong>Design decisions:</strong></p>
+    <ul>
+      <li><strong><code>async</code></strong> — MetaWhatsAppProvider (REQ-002) will <code>await httpx</code> calls. Changing sync→async later touches every call site; doing it now costs nothing.</li>
+      <li><strong>Single method</strong> — sufficient for REQ-001/002. Adding methods does not break existing callers.</li>
+    </ul>
+
+    <h3>MockWhatsAppProvider</h3>
+    <pre><code>MockWhatsAppProvider(WhatsAppProvider):
+    async send_message(recipient, message):
+        return MessageResult(
+            status     = "delivered",
+            provider   = "mock",
+            message_id = "mock-{uuid4}",
+            recipient  = recipient,
+            message    = message,
+            timestamp  = datetime.now(timezone.utc).isoformat(),
+        )</code></pre>
+
+    <ul>
+      <li><code>message_id</code> prefixed <code>"mock-"</code> — distinguishes mock IDs from real provider IDs in logs and assertions.</li>
+      <li><code>datetime.now(timezone.utc)</code> — not deprecated <code>utcnow()</code>.</li>
+      <li>No configurable failure mode in constructor — <code>test_controlled_provider_failure</code> uses a <code>FailingMockProvider</code> subclass inline.</li>
+    </ul>
+
+    <h3>Provider Factory</h3>
+    <pre><code>get_provider(provider_type: str) -&gt; WhatsAppProvider:
+    "mock"  -&gt;  MockWhatsAppProvider()
+    "meta"  -&gt;  [REQ-002: MetaWhatsAppProvider(settings)]
+    else    -&gt;  raise ValueError(f"Unknown provider: {provider_type!r}")</code></pre>
+  </section>
+
+  <!-- ─── 7 ─── -->
+  <section id="s7">
+    <h2><span class="sn">7</span> Python Project Structure</h2>
+
+    <div class="filetree"><span class="ft-dir">claude-whatsapp-mcp/</span>
+<span class="ft-tree">│</span>
+<span class="ft-tree">├── </span><span class="ft-dir">src/</span>
+<span class="ft-tree">│   └── </span><span class="ft-dir">whatsapp_mcp/</span>
+<span class="ft-tree">│       ├── </span><span class="ft-file">__init__.py</span>
+<span class="ft-tree">│       ├── </span><span class="ft-file">server.py</span>            <span class="ft-comment"># FastMCP app, tool, ASGI entry point, middleware wiring</span>
+<span class="ft-tree">│       ├── </span><span class="ft-file">config.py</span>            <span class="ft-comment"># Settings via pydantic-settings (incl. auth, rate-limit)</span>
+<span class="ft-tree">│       ├── </span><span class="ft-file">validation.py</span>        <span class="ft-comment"># validate_inputs(recipient, message)</span>
+<span class="ft-tree">│       ├── </span><span class="ft-file">auth.py</span>              <span class="ft-comment"># Auth ASGI middleware; mechanism TBD (OQ-04)</span>
+<span class="ft-tree">│       ├── </span><span class="ft-file">authz.py</span>             <span class="ft-comment"># Authorization policy check</span>
+<span class="ft-tree">│       ├── </span><span class="ft-file">rate_limit.py</span>        <span class="ft-comment"># Per-client rate limiter (in-memory)</span>
+<span class="ft-tree">│       ├── </span><span class="ft-file">audit.py</span>             <span class="ft-comment"># Structured audit log helper; correlation ID</span>
+<span class="ft-tree">│       └── </span><span class="ft-dir">providers/</span>
+<span class="ft-tree">│           ├── </span><span class="ft-file">__init__.py</span>      <span class="ft-comment"># get_provider() factory</span>
+<span class="ft-tree">│           ├── </span><span class="ft-file">base.py</span>          <span class="ft-comment"># WhatsAppProvider ABC + MessageResult</span>
+<span class="ft-tree">│           └── </span><span class="ft-file">mock.py</span>          <span class="ft-comment"># MockWhatsAppProvider</span>
+<span class="ft-tree">│</span>
+<span class="ft-tree">├── </span><span class="ft-dir">tests/</span>
+<span class="ft-tree">│   ├── </span><span class="ft-file">conftest.py</span>           <span class="ft-comment"># Fixtures: settings, provider, test app, auth helpers</span>
+<span class="ft-tree">│   ├── </span><span class="ft-file">test_mock_provider.py</span> <span class="ft-comment"># Unit: MockWhatsAppProvider</span>
+<span class="ft-tree">│   ├── </span><span class="ft-file">test_send_message.py</span>  <span class="ft-comment"># Tool-level: send_message via FastMCP test client</span>
+<span class="ft-tree">│   ├── </span><span class="ft-file">test_auth.py</span>          <span class="ft-comment"># Unit: auth middleware acceptance/rejection</span>
+<span class="ft-tree">│   ├── </span><span class="ft-file">test_authz.py</span>         <span class="ft-comment"># Unit: authorization policy</span>
+<span class="ft-tree">│   ├── </span><span class="ft-file">test_rate_limit.py</span>    <span class="ft-comment"># Unit: rate limiter enforcement</span>
+<span class="ft-tree">│   └── </span><span class="ft-file">test_audit.py</span>         <span class="ft-comment"># Unit: audit record structure + secret redaction</span>
+<span class="ft-tree">│</span>
+<span class="ft-tree">├── </span><span class="ft-dir">docs/</span>
+<span class="ft-tree">│   ├── </span><span class="ft-dir">requirements/</span>
+<span class="ft-tree">│   └── </span><span class="ft-dir">design/</span>
+<span class="ft-tree">│</span>
+<span class="ft-tree">├── </span><span class="ft-file">Dockerfile</span>
+<span class="ft-tree">├── </span><span class="ft-file">compose.yaml</span>
+<span class="ft-tree">├── </span><span class="ft-file">pyproject.toml</span>
+<span class="ft-tree">├── </span><span class="ft-file">.env.example</span>
+<span class="ft-tree">├── </span><span class="ft-file">.gitignore</span>               <span class="ft-comment"># .env  __pycache__  .pytest_cache  certs/  dist/</span>
+<span class="ft-tree">├── </span><span class="ft-file">CLAUDE.md</span>
+<span class="ft-tree">└── </span><span class="ft-file">README.md</span></div>
+
+    <h3>pyproject.toml Dependencies (design intent)</h3>
+    <pre><code>[project]
+dependencies = [
+  "fastmcp&gt;=2.3,&lt;3",
+  "uvicorn[standard]",
+  "pydantic-settings",
+  # rate limiting — TBD: slowapi or starlette-limiter (resolve at OQ-08)
+  # structured logging — TBD: structlog or stdlib JSON formatter (resolve at OQ-09)
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest",
+  "pytest-asyncio",
+  "httpx",   # FastMCP test client
+]</code></pre>
+
+    <h3>Why <code>src/</code> layout?</h3>
+    <ul>
+      <li>Prevents accidental import of working-tree package instead of installed one during tests.</li>
+      <li>Standard for production Python packages.</li>
+      <li>Explicit install (<code>uv pip install .</code>) required in Dockerfile.</li>
+    </ul>
+  </section>
+
+  <!-- ─── 8 ─── -->
+  <section id="s8">
+    <h2><span class="sn">8</span> Docker and Local Runtime Architecture</h2>
+
+    <h3>Dockerfile (design intent)</h3>
+    <pre><code>Stage:    single-stage (pure-Python app)
+
+Base:     python:3.12-slim
+Work dir: /app
+User:     non-root (appuser, uid 1000) — required for REQ-003; zero cost now
+Install:  COPY pyproject.toml + src/ -&gt; uv pip install .
+EXPOSE:   8000  (plain HTTP; TLS terminates at proxy or in-app — OQ-06)
+CMD:      uvicorn whatsapp_mcp.server:app --host 0.0.0.0 --port 8000</code></pre>
+
+    <h3>compose.yaml (design intent)</h3>
+    <div class="callout callout-warn">
+      <div class="ct">OQ-12 — Single vs Separate Services</div>
+      Two topologies pending resolution of OQ-06/OQ-12:<br><br>
+      <strong>Option A — Reverse proxy service (Caddy/nginx)</strong>:
+      <pre><code>services:
+  proxy:        # Caddy or nginx — terminates TLS, forwards to app
+    image: caddy:latest
+    ports: ["443:443"]
+    volumes: [./Caddyfile:/etc/caddy/Caddyfile, certs:/certs]
+  whatsapp-mcp:
+    build: .
+    env_file: .env
+    # no port binding — only proxy accesses it</code></pre>
+      <strong>Option B — Single service (in-app TLS)</strong>:
+      <pre><code>services:
+  whatsapp-mcp:
+    build: .
+    ports: ["${MCP_PORT:-8443}:8000"]
+    env_file: .env
+    volumes: [./certs:/app/certs:ro]  # cert/key mount</code></pre>
+    </div>
+
+    <p><code>restart: unless-stopped</code> on the MCP service — matches REQ-003 recovery requirement at zero design cost.</p>
+
+    <h3>.env.example</h3>
+    <pre><code># MCP Server
+MCP_PORT=8443
+
+# Provider: mock | meta
+PROVIDER=mock
+
+# Logging
+LOG_LEVEL=INFO
+AUDIT_LOG_LEVEL=INFO
+
+# Auth (mechanism TBD — OQ-04)
+AUTH_ENABLED=true
+API_KEY=change-me-never-commit-a-real-key
+
+# Rate limiting
+RATE_LIMIT_PER_MINUTE=10
+RATE_LIMIT_BURST=5</code></pre>
+
+    <h3>Local Developer Workflow</h3>
+    <pre><code>cp .env.example .env
+# generate local dev cert (exact command TBD — OQ-07, mkcert recommended)
+mkcert -install
+mkcert localhost 127.0.0.1
+
+docker compose up --build
+# MCP client connects to https://localhost:8443/mcp</code></pre>
+
+    <div class="callout callout-future">
+      <div class="ct">REQ-003 Preparation</div>
+      Non-root user added in REQ-001 at zero cost. REQ-003 replaces local TLS with production cert management and moves to cloud hosting.
+    </div>
+  </section>
+
+  <!-- ─── 9 ─── -->
+  <section id="s9">
+    <h2><span class="sn">9</span> Testing Strategy</h2>
+
+    <h3>Test Layers</h3>
+    <div class="tw"><table>
+      <thead><tr><th>Layer</th><th>File</th><th>Scope</th><th>External calls</th></tr></thead>
+      <tbody>
+        <tr><td>Provider unit</td><td><code>test_mock_provider.py</code></td><td><code>MockWhatsAppProvider</code> directly</td><td>None</td></tr>
+        <tr><td>Tool integration</td><td><code>test_send_message.py</code></td><td><code>send_message</code> via FastMCP in-process client</td><td>None</td></tr>
+        <tr><td>Auth unit</td><td><code>test_auth.py</code></td><td>Auth middleware in isolation</td><td>None</td></tr>
+        <tr><td>Authz unit</td><td><code>test_authz.py</code></td><td>Authorization policy</td><td>None</td></tr>
+        <tr><td>Rate limit unit</td><td><code>test_rate_limit.py</code></td><td>Rate limiter enforcement</td><td>None</td></tr>
+        <tr><td>Audit unit</td><td><code>test_audit.py</code></td><td>Audit record structure + secret redaction</td><td>None</td></tr>
+      </tbody>
+    </table></div>
+
+    <blockquote>REQ-002 adds Meta HTTP boundary mocks tagged <code>@pytest.mark.integration</code> — excluded from default run. Integration tests for HTTPS require local cert setup (OQ-14).</blockquote>
+
+    <h3>Required Test Cases — <code>test_mock_provider.py</code></h3>
+    <div class="tw"><table>
+      <thead><tr><th>Test</th><th>Asserts</th></tr></thead>
+      <tbody>
+        <tr><td><code>test_returns_delivered_status</code></td><td><code>result.status == "delivered"</code></td></tr>
+        <tr><td><code>test_returns_mock_provider</code></td><td><code>result.provider == "mock"</code></td></tr>
+        <tr><td><code>test_message_id_is_unique</code></td><td>Two calls → two different <code>message_id</code> values</td></tr>
+        <tr><td><code>test_message_id_has_mock_prefix</code></td><td><code>result.message_id.startswith("mock-")</code></td></tr>
+        <tr><td><code>test_preserves_recipient</code></td><td><code>result.recipient == input_recipient</code></td></tr>
+        <tr><td><code>test_preserves_message</code></td><td><code>result.message == input_message</code></td></tr>
+        <tr><td><code>test_timestamp_is_utc_iso</code></td><td>Parseable as ISO-8601 with UTC offset</td></tr>
+      </tbody>
+    </table></div>
+
+    <h3>Required Test Cases — <code>test_send_message.py</code></h3>
+    <div class="tw"><table>
+      <thead><tr><th>Test</th><th>Asserts</th></tr></thead>
+      <tbody>
+        <tr><td><code>test_success</code></td><td>All six <code>MessageResult</code> fields present and non-empty</td></tr>
+        <tr><td><code>test_rejects_empty_recipient</code></td><td>Returns error; no <code>MessageResult</code> produced</td></tr>
+        <tr><td><code>test_rejects_whitespace_recipient</code></td><td>Same for <code>"   "</code></td></tr>
+        <tr><td><code>test_rejects_empty_message</code></td><td>Returns error; no <code>MessageResult</code> produced</td></tr>
+        <tr><td><code>test_rejects_whitespace_message</code></td><td>Same for <code>"\t\n"</code></td></tr>
+        <tr><td><code>test_controlled_provider_failure</code></td><td>Provider raises; tool returns error dict; server stays running</td></tr>
+        <tr><td><code>test_rejects_unauthenticated</code></td><td>Missing auth header → error; <code>MockWhatsAppProvider</code> not invoked</td></tr>
+        <tr><td><code>test_rejects_invalid_token</code></td><td>Wrong token → error; provider not invoked</td></tr>
+        <tr><td><code>test_accepts_valid_token</code></td><td>Authenticated request succeeds end-to-end</td></tr>
+        <tr><td><code>test_rejects_unauthorized</code></td><td>Authenticated but not authorized → error; provider not invoked</td></tr>
+        <tr><td><code>test_rate_limit_enforced</code></td><td>Exceed rate limit → rejected; provider not invoked</td></tr>
+        <tr><td><code>test_audit_record_produced</code></td><td>Each invocation produces audit entry with correlation ID</td></tr>
+        <tr><td><code>test_audit_no_credentials</code></td><td>Token value never appears in audit log output</td></tr>
+      </tbody>
+    </table></div>
+
+    <h3>pytest Configuration (design intent)</h3>
+    <pre><code>[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths   = ["tests"]
+markers     = [
+  "integration: requires real external config or local certs (not run by default)",
+]</code></pre>
+  </section>
+
+  <!-- ─── 10 ─── -->
+  <section id="s10">
+    <h2><span class="sn">10</span> Acceptance Criteria Mapping</h2>
+    <div class="tw"><table>
+      <thead><tr><th>AC</th><th>Criterion (from REQ-001)</th><th>Design Element</th></tr></thead>
+      <tbody>
+        <tr><td>AC-01</td><td>Python remote MCP server using FastMCP, running in Docker</td><td><code>fastmcp</code> + <code>uvicorn</code>, <code>Dockerfile</code>, <code>compose.yaml</code></td></tr>
+        <tr><td>AC-02</td><td>HTTP-based remote transport (not stdio)</td><td><code>mcp.http_app()</code> → Streamable HTTP at <code>/mcp</code></td></tr>
+        <tr><td>AC-03</td><td><code>send_message</code> tool with <code>recipient</code> and <code>message</code> inputs</td><td><code>@app.tool() async def send_message(recipient: str, message: str)</code></td></tr>
+        <tr><td>AC-04</td><td>Result: status, provider, message_id, recipient, message, timestamp</td><td><code>MessageResult</code> dataclass — 6 fields</td></tr>
+        <tr><td>AC-05</td><td>MockWhatsAppProvider only; no external service calls</td><td><code>PROVIDER=mock</code> → <code>MockWhatsAppProvider</code>; no network imports</td></tr>
+        <tr><td>AC-06</td><td>Mock simulates success; no real message</td><td>UUID + timestamp; <code>status="delivered"</code></td></tr>
+        <tr><td>AC-07</td><td>Provider abstraction allows mock→Meta swap without tool contract change</td><td><code>WhatsAppProvider</code> ABC; <code>get_provider()</code> factory</td></tr>
+        <tr><td>AC-08</td><td>Reachable from host Mac after <code>docker compose up --build</code></td><td>Port mapping + documented HTTPS endpoint</td></tr>
+        <tr><td>AC-09</td><td>Config via env vars; no hardcoded values</td><td><code>pydantic-settings</code> Settings; all values from env</td></tr>
+        <tr><td>AC-10</td><td>Secrets + <code>.env</code> excluded from git</td><td><code>.gitignore</code> includes <code>.env</code>, <code>certs/</code>; <code>.env.example</code> has placeholders</td></tr>
+        <tr><td>AC-11</td><td>Reject empty/whitespace <code>recipient</code> and <code>message</code></td><td><code>validation.py → validate_inputs()</code> before provider</td></tr>
+        <tr><td>AC-12</td><td>Provider failures → controlled errors; server does not crash</td><td>try/except in tool handler; structured error dict</td></tr>
+        <tr><td>AC-13</td><td>Operational logging — no credentials</td><td>Structured log calls; <code>LOG_LEVEL</code> env var</td></tr>
+        <tr><td>AC-14</td><td>Automated tests: success, validation, controlled failure</td><td><code>test_mock_provider.py</code> + <code>test_send_message.py</code></td></tr>
+        <tr><td>AC-15</td><td>Docker artifacts in repository</td><td><code>Dockerfile</code> + <code>compose.yaml</code></td></tr>
+        <tr><td>AC-16</td><td>README: prereqs, architecture, Docker setup, endpoint, tool contract, tests</td><td><code>README.md</code> — all required sections</td></tr>
+        <tr><td>AC-17</td><td>Clean clone → configure → start without modifying source</td><td><code>cp .env.example .env</code> + <code>docker compose up --build</code></td></tr>
+        <tr><td>AC-18</td><td>MCP clients connect via HTTPS; plain HTTP only inside trusted local boundary</td><td>TLS termination at proxy or in-app; MCP app on internal network</td></tr>
+        <tr><td>AC-19</td><td>Auth required; unauthenticated requests rejected before <code>send_message</code></td><td><code>auth.py</code> ASGI middleware; 401 on missing/invalid token</td></tr>
+        <tr><td>AC-20</td><td>Auth credentials via env vars; never hardcoded or logged</td><td><code>API_KEY</code> env var; redacted from all log output</td></tr>
+        <tr><td>AC-21</td><td>Authorization enforced server-side before provider invocation</td><td><code>authz.py</code> policy; 403 before <code>MockWhatsAppProvider</code></td></tr>
+        <tr><td>AC-22</td><td>Rate limiting on <code>send_message</code></td><td><code>rate_limit.py</code>; in-memory; 429 before provider; config externalized</td></tr>
+        <tr><td>AC-23</td><td>Structured audit record per invocation (no secrets)</td><td><code>audit.py</code>; all 7 fields; token/credentials redacted</td></tr>
+        <tr><td>AC-24</td><td>Auth/authz/rate-limit/validation/provider failures controlled; server stays running</td><td>Middleware returns structured errors; uvicorn process unaffected</td></tr>
+        <tr><td>AC-25</td><td>Tests cover auth, authz, rate limit, audit, secret redaction</td><td><code>test_auth.py</code>, <code>test_authz.py</code>, <code>test_rate_limit.py</code>, <code>test_audit.py</code></td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <!-- ─── 11 ─── -->
+  <section id="s11">
+    <h2><span class="sn">11</span> Open Items Before Implementation</h2>
+
+    <div class="callout callout-warn">
+      <div class="ct">⚠ Resolve All 14 Before Writing Code</div>
+      Record decisions back in this document. Unresolved OQs are not permission to weaken mandatory acceptance criteria.
+    </div>
+
+    <div class="tw"><table>
+      <thead><tr><th>#</th><th>Question</th><th>Decision</th></tr></thead>
+      <tbody>
+        <tr><td>OQ-01</td><td>Which exact FastMCP package and pinned version?</td><td></td></tr>
+        <tr><td>OQ-02</td><td>Current recommended HTTP-based remote transport for that version; endpoint path?</td><td></td></tr>
+        <tr><td>OQ-03</td><td>Which MCP client(s) must be supported (Claude Desktop, MCP Inspector, custom)?</td><td></td></tr>
+        <tr><td>OQ-04</td><td>Authentication mechanism: Bearer token (API key) or OAuth 2.0 per MCP 2025 spec?</td><td></td></tr>
+        <tr><td>OQ-05</td><td>Client identity/claim for authz; minimal policy granting access to <code>send_message</code>?</td><td></td></tr>
+        <tr><td>OQ-06</td><td>TLS termination: in-app uvicorn TLS or separate reverse-proxy container?</td><td></td></tr>
+        <tr><td>OQ-07</td><td>Local dev cert generation + macOS trust (mkcert?) without committing keys?</td><td></td></tr>
+        <tr><td>OQ-08</td><td>Default rate limit values, time window, identity key; in-memory sufficient?</td><td></td></tr>
+        <tr><td>OQ-09</td><td>Audit record destination (stdout JSON? file?), format, local retention behavior?</td><td></td></tr>
+        <tr><td>OQ-10</td><td>Recipient validation: non-empty only, or enforce E.164?</td><td></td></tr>
+        <tr><td>OQ-11</td><td>Message bodies: always redact/omit, or explicit debug option?</td><td></td></tr>
+        <tr><td>OQ-12</td><td>One container or separate Compose services for HTTPS + MCP?</td><td></td></tr>
+        <tr><td>OQ-13</td><td>MCP SDK error codes for auth/authz/rate-limit/validation/provider failures?</td><td></td></tr>
+        <tr><td>OQ-14</td><td>Integration test strategy: local certs, auth credentials, rate-limit state, audit capture?</td><td></td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+</main>
+
+<script>
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'base',
+    themeVariables: {
+      primaryColor: '#dbeafe',
+      primaryTextColor: '#1e3a5f',
+      primaryBorderColor: '#3b82f6',
+      lineColor: '#6b7280',
+      secondaryColor: '#f0fdf4',
+      tertiaryColor: '#faf5ff',
+      background: '#ffffff',
+      fontSize: '13px',
+    },
+    flowchart: { curve: 'basis', padding: 20 },
+  });
+</script>
+
+</body>
+</html>
